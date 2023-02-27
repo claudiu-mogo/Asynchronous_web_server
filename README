@@ -1,0 +1,76 @@
+Mogodeanu_Claudiu_321CC_tema3_SO
+
+Arhiva contine: fisierul aws.c, cu implementarea propriu-zisa, 2 .c-uri cu functii predefinite
+din scheletul temei, mai multe headere, Makefile si README.
+
+! In cadrul implementarii am mixat modurile de lucru (si am mai luat cod direct) din sample-urile
+puse la dispozitie si din laboratoarele din anii trecuti (link-uri la rubrica "Resurse"), in special
+din exemplul de echo_server si Laboratorul 11 din anii trecuti, sectiunea "Exemplu folosire epoll".
+
+!! Nu am urmat 100% scheletul pus la dispozitie (echo server i mean), 
+adica nu l-am luat si l-am modificat. Am zis sa scriu de la mine ca sa raman 
+macar cu ideea ca am inteles ce se intampla, chiar daca nu m-am
+organizat bine cu timpul pentru a rezolva tot. De aceea poate nu e asa modularizat, am facut cu
+pasii descrisi mai jos in minte. Eu zic ca am inteles ce se intampla.
+
+Timp de implementare:
+~20-25h, a fost o tema interesanta si cu destula documentatie si imi pare rau ca nu am avut
+cand sa o termin.
+
+Implementare:
+
+General:
+- Initial am creat un socket listen, numit listenfd si o instanta de epoll, cu un event asociat
+- Am facut conexiunea de tip tcp, pentru a il pune sa asculte si l-am adaugat in epoll
+
+- Pentru o conexiune noua, am definit o structura Connect, ce contine urmatoarele:
+-> connection_fd = file descriptorul asociat conexiunii in FDT
+-> state = daca este conexiunea pornita sau oprita
+-> receive_buffer = bufferul pe care il umplem cu tot GET-ul primit prin wget si pe care o sa il parsam
+-> cateva countere care tin cont de cat am citit / scris din antet / scris din fisier
+-> o cale catre fisierul cautat pentru a ne fi mai usor la sendfile, fd-ul din FDT si un pointer in
+care retinem ce intoarce fstat (ne intereseaza doar dimensiunea fisierului pentru a sti cand sa ne oprim)
+
+- request_parserul si request_path-ul sunt globale, m-am gandit ca e posibil sa trebuiasca sa le fac
+per structura, insa n-a fost nevoie si am lasat asa
+- Headerul care se trimite prin send se formeaza astfel:
+-> in functie de existenta fisierului, alegem dintre bad_header si header si il mutam in add_to_header
+-> aflam dimensiunea fisierului (daca exista, altfel, 0) si concatenam un nou string cu Content-Length
+-> trimitem add_to_header prin send
+
+Workflow:
+
+- Am considerat ca, dupa ce am pus serverul sa dea listen, exista 4 tipuri de actiuni, in ordine succesiva:
+
+1. primire a unui nou request de conectare pe listen si acceptarea sa:
+-> daca nu da aiurea accept-ul, alocam o noua structura pentru socketul respectiv si il facem non-blocant
+-> il adaugam la epoll cu EPOLLIN (adica sa primim GET pe el in viitor)
+
+2. primirea unei cereri pe unul din socketii noi:
+-> dam succesiv recv (o sa intre iar in epoll_wait) pentru ca baietii au modificat functiile si formam
+receive_buffer-ul pt conexiunea respectiva cu tot GET-ul
+-> daca se primeste "\r\n\r\n" consideram ca s-a terminat de primit si putem parsa ce am primit
+-> construim calea spre fisier cu ajutorul parserului, deschidem fisierul si ii luam size-ul
+-> marcam socketul cu EPOLLOUT, urmand sa trimitem pe el
+
+3. Daca a fost buna calea spre fisier:
+-> trimitem header-ul cu send (tot la fel fara bucla) pana am ajuns sa trimitem strlen de el
+-> send este dat cu NULL si stie sa actualizeze el offsetul (sau asa scrie in man)
+-> ramanem pe EPOLLOUT, urmeaza sa trimitem fisierul
+
+4. Verificam din nou daca fisierul cautat exista si lucram ca la 3, altfel doar inchidem conexiunea
+-> dam, exact ca la 3, sendfile pana cand am scris un nr de bytes egal cu dim fisierului
+
+Implementari dubioase care ar fi avut probabil alternative mai bune?
+- Avand in vedere ca am warning la sprintf, sigur exista o varianta mai buna de a concatena
+- unele chestii par semi-hardcodate, dar nu cred ca am facut ceva gresit: de ex la calea fisierului
+am sarit fortat peste primul caracter parsat "/" si dupa am dat append root-ului
+
+Resurse:
+http://elf.cs.pub.ro/so/res/teme/tema5-util/lin/samples/epoll_echo_server.c
+http://elf.cs.pub.ro/so/res/teme/tema5-util/http-parser/samples/test_get_request_path.c
+https://ocw.cs.pub.ro/courses/so/laboratoare/laborator-11
+https://man7.org/linux/man-pages/man7/epoll.7.html
+https://man7.org/linux/man-pages/man2/send.2.html
+https://man7.org/linux/man-pages/man2/sendfile.2.html
++ restul de fisiere sursa puse la dispozitie, chiar au fost suficiente resurse
