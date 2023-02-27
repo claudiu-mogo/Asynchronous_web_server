@@ -9,8 +9,7 @@ din exemplul de echo_server si Laboratorul 11 din anii trecuti, sectiunea "Exemp
 
 !! Nu am urmat 100% scheletul pus la dispozitie (echo server i mean), 
 adica nu l-am luat si l-am modificat. Am zis sa scriu de la mine ca sa raman 
-macar cu ideea ca am inteles ce se intampla, chiar daca nu m-am
-organizat bine cu timpul pentru a rezolva tot. De aceea poate nu e asa modularizat, am facut cu
+macar cu ideea ca am inteles ce se intampla. De aceea poate nu e asa modularizat, am facut cu
 pasii descrisi mai jos in minte. Eu zic ca am inteles ce se intampla.
 
 Timp de implementare:
